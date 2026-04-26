@@ -84,30 +84,30 @@ switch ($method) {
         }
 
         // Save article (Create/Update by Admin)
-        $user = requireAdmin($pdo);
-        $article = $data;
-        $id = $article['id'] ?? null;
-        
-        // Prevent UUIDs from being treated as numerical IDs if they are not in the DB
-        // If ID is not numeric, we check if it exists. If not, we treat it as a new article (null ID)
-        if ($id && !is_numeric($id)) {
-            $checkStmt = $pdo->prepare("SELECT id FROM articles WHERE id = ?");
-            try {
-                $checkStmt->execute([$id]);
-                if (!$checkStmt->fetch()) {
-                    $id = null; // Article with this string ID doesn't exist in DB, treat as new
-                }
-            } catch (Exception $e) {
-                $id = null;
-            }
-        }
-
-        // Prepare JSON fields
-        $gallery = json_encode($article['gallery'] ?? []);
-        $reactions = json_encode($article['reactions'] ?? (object)[]);
-        $tags = json_encode($article['tags'] ?? []);
-
         try {
+            $user = requireAdmin($pdo);
+            $article = $data;
+            $id = $article['id'] ?? null;
+            
+            // Prevent UUIDs from being treated as numerical IDs if they are not in the DB
+            // If ID is not numeric, we check if it exists. If not, we treat it as a new article (null ID)
+            if ($id && !is_numeric($id)) {
+                $checkStmt = $pdo->prepare("SELECT id FROM articles WHERE id = ?");
+                try {
+                    $checkStmt->execute([$id]);
+                    if (!$checkStmt->fetch()) {
+                        $id = null; // Article with this string ID doesn't exist in DB, treat as new
+                    }
+                } catch (Exception $e) {
+                    $id = null;
+                }
+            }
+
+            // Prepare JSON fields
+            $gallery = json_encode($article['gallery'] ?? []);
+            $reactions = json_encode($article['reactions'] ?? (object)[]);
+            $tags = json_encode($article['tags'] ?? []);
+
             if ($id) {
                 // Update
                 $sql = "UPDATE articles SET 
@@ -115,15 +115,36 @@ switch ($method) {
                     rubric = ?, country = ?, is_featured = ?,
                     image = ?, video = ?, audiourl = ?, gallery = ?, author = ?, 
                     authorrole = ?, excerpt = ?, readingtime = ?, imagecredit = ?, source = ?, 
-                    tags = ?, status = ?, ispremium = ?, seotitle = ?, seodescription = ?, socialimage = ?
+                    tags = ?, status = ?, ispremium = ?, seotitle = ?, seodescription = ?, socialimage = ?,
+                    reactions = ?
                     WHERE id = ?";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([
-                    $article['slug'], $article['title'], $article['content'], $article['date'], $article['category'],
-                    $article['rubric'] ?? null, $article['country'] ?? null, isset($article['is_featured']) && $article['is_featured'] ? 1 : 0,
-                    $article['image'] ?? null, $article['video'] ?? null, $article['audiourl'] ?? null, $gallery, $article['author'] ?? 'Rédaction',
-                    $article['authorrole'] ?? 'Journaliste', $article['excerpt'] ?? '', $article['readingtime'] ?? '4 min', $article['imagecredit'] ?? '', $article['source'] ?? '',
-                    $tags, $article['status'] ?? 'published', isset($article['ispremium']) && $article['ispremium'] ? 1 : 0, $article['seotitle'] ?? '', $article['seodescription'] ?? '', $article['socialimage'] ?? '',
+                    $article['slug'] ?? '', 
+                    $article['title'] ?? '', 
+                    $article['content'] ?? '', 
+                    $article['date'] ?? date('Y-m-d H:i:s'), 
+                    $article['category'] ?? '',
+                    $article['rubric'] ?? null, 
+                    $article['country'] ?? null, 
+                    (isset($article['is_featured']) && $article['is_featured']) ? 1 : 0,
+                    $article['image'] ?? null, 
+                    $article['video'] ?? null, 
+                    $article['audiourl'] ?? null, 
+                    $gallery, 
+                    $article['author'] ?? 'Rédaction',
+                    $article['authorrole'] ?? 'Journaliste', 
+                    $article['excerpt'] ?? '', 
+                    $article['readingtime'] ?? '4 min', 
+                    $article['imagecredit'] ?? '', 
+                    $article['source'] ?? '',
+                    $tags, 
+                    $article['status'] ?? 'published', 
+                    (isset($article['ispremium']) && $article['ispremium']) ? 1 : 0, 
+                    $article['seotitle'] ?? '', 
+                    $article['seodescription'] ?? '', 
+                    $article['socialimage'] ?? '',
+                    $reactions,
                     $id
                 ]);
                 sendResponse(["success" => true, "id" => $id]);
@@ -132,20 +153,40 @@ switch ($method) {
                 $sql = "INSERT INTO articles (
                     slug, title, content, date, category, rubric, country, is_featured, image, video, audiourl, gallery, author, 
                     authorrole, excerpt, readingtime, imagecredit, source, tags, status, ispremium, 
-                    seotitle, seodescription, socialimage
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    seotitle, seodescription, socialimage, reactions
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([
-                    $article['slug'], $article['title'], $article['content'], $article['date'] ?? date('Y-m-d H:i:s'), $article['category'],
-                    $article['rubric'] ?? null, $article['country'] ?? null, isset($article['is_featured']) && $article['is_featured'] ? 1 : 0,
-                    $article['image'] ?? null, $article['video'] ?? null, $article['audiourl'] ?? null, $gallery, $article['author'] ?? 'Rédaction',
-                    $article['authorrole'] ?? 'Journaliste', $article['excerpt'] ?? '', $article['readingtime'] ?? '4 min', $article['imagecredit'] ?? '', $article['source'] ?? '',
-                    $tags, $article['status'] ?? 'published', isset($article['ispremium']) && $article['ispremium'] ? 1 : 0, $article['seotitle'] ?? '', $article['seodescription'] ?? '', $article['socialimage'] ?? ''
+                    $article['slug'] ?? '', 
+                    $article['title'] ?? '', 
+                    $article['content'] ?? '', 
+                    $article['date'] ?? date('Y-m-d H:i:s'), 
+                    $article['category'] ?? '',
+                    $article['rubric'] ?? null, 
+                    $article['country'] ?? null, 
+                    (isset($article['is_featured']) && $article['is_featured']) ? 1 : 0,
+                    $article['image'] ?? null, 
+                    $article['video'] ?? null, 
+                    $article['audiourl'] ?? null, 
+                    $gallery, 
+                    $article['author'] ?? 'Rédaction',
+                    $article['authorrole'] ?? 'Journaliste', 
+                    $article['excerpt'] ?? '', 
+                    $article['readingtime'] ?? '4 min', 
+                    $article['imagecredit'] ?? '', 
+                    $article['source'] ?? '',
+                    $tags, 
+                    $article['status'] ?? 'published', 
+                    (isset($article['ispremium']) && $article['ispremium']) ? 1 : 0, 
+                    $article['seotitle'] ?? '', 
+                    $article['seodescription'] ?? '', 
+                    $article['socialimage'] ?? '',
+                    $reactions
                 ]);
                 sendResponse(["success" => true, "id" => $pdo->lastInsertId()]);
             }
-        } catch (PDOException $e) {
-            sendResponse(["error" => "Erreur SQL: " . $e->getMessage()], 500);
+        } catch (Throwable $e) {
+            sendResponse(["error" => "Erreur lors de l'enregistrement de l'article: " . $e->getMessage()], 500);
         }
         break;
 
